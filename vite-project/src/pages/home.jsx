@@ -1,27 +1,51 @@
-import React, { useState } from "react"; // Correctly import useState
+import { searchMovies, getPopularMovies } from "../sevices/api";
+import { useState, useEffect } from "react";
 import Moviecard from "../components/moviecards";
+import "../css/Home.css";
 
 function Home() {
-    const [searchQuery, setSearchQuery] = useState(""); // Correct useState
-    const movies = [
-        { id: 1, title: "Bahubali", release: '2018' },
-        { id: 2, title: "Bahubali 2", release: '2022' },
-        { id: 3, title: "KGF", release: '2022' },
-    ];
+    const [searchQuery, setSearchQuery] = useState("");
+    const [movies, setMovies] = useState([]);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const handleSearch = (e) => {
+    useEffect(() => {
+        const loadPopularMovies = async () => {
+            try {
+                const popularMovies = await getPopularMovies();
+                setMovies(popularMovies);
+            } catch (err) {
+                console.log(err);
+                setError("Failed to load movies...");
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadPopularMovies();
+    }, []);
+
+    const handleSearch = async (e) => {
         e.preventDefault();
-        // You can filter the movies based on the search query here
-        // For now, it resets the search query
-        setSearchQuery(""); 
-    }
-    const filteredMovies = movies.filter(movie =>
-                    movie.title.toLowerCase().startsWith(searchQuery)&&(
-                    <Moviecard movie={movie} key={movie.id} />
-
-                    ));
-
+        if (!searchQuery.trim()) return;
+        if (loading) return;
     
+        setLoading(true);
+        try {
+            const searchResults = await searchMovies(searchQuery);
+            setMovies(searchResults);
+            setError(null);
+        } catch (err) {
+            console.log(err);
+            setError("Failed to search movies...");
+        } finally {
+            setLoading(false);
+        }
+    };
+    // Filter the movies based on the search query
+    const filteredMovies = movies.filter((movie) =>
+        movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
 
     return (
         <div className="home">
@@ -33,12 +57,22 @@ function Home() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <button type="Submit" className="search-btn">Search</button>
+                <button type="submit" className="search-btn">
+                    Search
+                </button>
             </form>
+
+            {loading && <div className="loading">Loading...</div>}
+            {error && <div className="error">{error}</div>}
+
             <div className="movies-grid">
-                {filteredMovies.map((movie) => (
-                    <Moviecard movie={movie} key={movie.id} />
-                ))}
+                {filteredMovies.length > 0 ? (
+                    filteredMovies.map((movie) => (
+                        <Moviecard movie={movie} key={movie.id} />
+                    ))
+                ) : (
+                    <div className="no-results">No movies found</div>
+                )}
             </div>
         </div>
     );
